@@ -1,0 +1,20 @@
+Package: bagfoot
+Title: Bi-vAriate Genomic Footprinting (BaGFoot)
+Version: 0.9.7.02
+Authors@R: person("Songjoon", "Baek", email = "sojbaek@gmail.com", role = c("aut", "cre"))
+Description: BaGFoot
+Depends:
+    R (>= 3.2.0)
+License: GNU General Public License, v 3.0
+Encoding: UTF-8
+LazyData: true
+Imports:
+    hash,
+    parallel,
+    digest,
+    data.table,
+    Cairo,
+    aplpack,
+    BSgenome.Hsapiens.UCSC.hg19,
+    BSgenome.Mmusculus.UCSC.mm9,
+RoxygenNote: 6.1.1
