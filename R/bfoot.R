@@ -18,9 +18,9 @@
 #library(foreach);
 ###################################bfoot.configuration #########################################
 
-#MCCORES=getOption("mc.cores", 2L);	         # Number of CPU cores for parallel computation
-MCCORES=8;
-MCCORES_MOTIF = 8;     # How many motifs are calculated at the same time
+MCCORES=getOption("mc.cores", 2L);	         # Number of CPU cores for parallel computation
+#MCCORES=4;
+MCCORES_MOTIF =getOption("mc.cores", 2L);	     # How many motifs are calculated at the same time
 #MCCORES_MOTIF = 1;     # How many motifs are calculated at the same time
 FAST_AGGREGATION_MC_CORES = 8; # Number of CPU cores for less-memory dependent calculation
 
@@ -28,16 +28,16 @@ MAX_MOTIF_SITES = 10000000;    # Maximum number of FIMO sites for each motif
 BFOOT_DEBUG = F;
 
 
-parallel__mclapply <<- parallel::mclapply;
+#parallel__mclapply = parallel::mclapply;
 #parallel__mclapply <<- function(x, y, ...) { lapply(x,y); };
 
-dyn.load("/opt/R/bagfootr/bagfoot/src/bagfoot.so");
+#dyn.load("bagfoot.so",);
 
 #doMC::registerDoMC(cores=MCCORES);
 
 ###################################bfoot#########################################################
 
-bagfootVersion <<- "0.9.7.02";
+bagfootVersion <<- "0.9.7.03";
 cat(sprintf('BaGFoot: v.%s\n', bagfootVersion));
 
 printf <- function(...) { cat(sprintf(...)); };
@@ -61,7 +61,7 @@ countCutcountOnSites <- function(cutcount, sites) {
 		hs <- sites;
 	}
   
-	chroms = levels(hs$chr);
+	chroms = levels(as.factor(hs$chr));
 	sum_for_chr<- function(chr) {
 #			print(chr);
 			tdchr = cutcount[[chr]];
@@ -75,7 +75,7 @@ countCutcountOnSites <- function(cutcount, sites) {
 			s;
 	}
 	#browser();
-	sum(unlist(parallel__mclapply(chroms, sum_for_chr,mc.cores=MCCORES)));
+	sum(unlist(parallel::mclapply(chroms, sum_for_chr,mc.cores=MCCORES)));
 }
 
 readCutCountOnSites<-function(cutcount_file="", site_file="") {
@@ -143,7 +143,7 @@ readCutCountOnSites<-function(cutcount_file="", site_file="") {
 		sites = readhotspot(site_file);
 
 		#browser();
-		reduced_cutcount= parallel__mclapply(names(cutcount), function(x) { filterCutcountByHotspot(sites, x); }, mc.cores=MCCORES);
+		reduced_cutcount= parallel::mclapply(names(cutcount), function(x) { filterCutcountByHotspot(sites, x); }, mc.cores=MCCORES);
 		#reduced_cutcount= lapply(names(cutcount), function(x) { filterCutcountByHotspot(sites, x); });
 		names(reduced_cutcount)<- names(cutcount);
 
@@ -223,15 +223,18 @@ drawMotifAggPlotOnMotifSetsForMultipleRangesAndWithComparisons <- function(
 	doexist=file.exists(nuccodefiles);
 	chrs= chrs[doexist];
 	nuccodefiles=nuccodefiles[doexist];
-	nuccodes= parallel__mclapply(nuccodefiles, function(nuccodefile) {
+	nuccodes= parallel::mclapply(nuccodefiles, function(nuccodefile) {
 			nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
 			nuccode; }, mc.cores=MCCORES,mc.preschedule=F);
+
+	# nuccodes= lapply(nuccodefiles, function(nuccodefile) {
+	# 		nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
+	# 		nuccode; });
 
 	if (normalization=="default") {
 		oldncutcounts= ncutcounts;
 		#browser();
 		ncutcounts = sapply(1:length(cutcountdatalist), function(kk) countCutcountOnSites(cutcountdatalist[[kk]],sitefilelist[[kk]]));
-		
 	}
 
 	if (is.na(ncutcounts[1])) {
@@ -258,7 +261,7 @@ drawMotifAggPlotOnMotifSetsForMultipleRangesAndWithComparisons <- function(
 								range=range,
 								graphout=graphout);
 						gc();
-		}); #}, mc.cores=3);  # parallel__mclapply
+		}); #}, mc.cores=3);  # parallel::mclapply
 	}  # for (half
 
 	for (index in comparisonIndices) {
@@ -611,7 +614,8 @@ intersect_intervals_fast_index2C <- function(X1,X2,Y1,Y2)
 
 #' @export
 readFrequencyTable<-function(ftablefile) {
-	cat(sprintf("reading %s ......\n", ftablefile));
+	##### 
+	cat(sprintf("reading the frequency table file: %s ......\n", ftablefile));
 	ftable = read.table(ftablefile);
 	nr = nrow(ftable);
 	
@@ -658,7 +662,7 @@ OverlappingIndexAParallel <- function(A,B,mc.cores=MCCORES)
   if (mc.cores==1) {
 	  kk=lapply(seq_along(chrs),OverlappingIndexAParallelPerChrom);
   } else {
-	  kk=parallel__mclapply(seq_along(chrs),OverlappingIndexAParallelPerChrom , mc.cores=mc.cores);
+	  kk=parallel::mclapply(seq_along(chrs),OverlappingIndexAParallelPerChrom , mc.cores=mc.cores);
   }
  # browser();
   unlist(kk);
@@ -829,12 +833,12 @@ drawMotifAggPlotOnMotifSets<- function(dataname = '',
 		}
 
 	if (MCCORES_MOTIF == 1) {
-		result<-lapply(range, function(x) { runCalc(x, graphout=graphout); }); # parallel__mclapply
+		result<-lapply(range, function(x) { runCalc(x, graphout=graphout); }); # parallel::mclapply
 	} else {
 		
 		#result<- foreach::foreach(x = range, .combine=c) %dopar% runCalc(x, graphout=graphout);	
-		result<-parallel__mclapply(range, function(x) { runCalc(x, graphout=graphout); },mc.cores=MCCORES_MOTIF );
-		# ); # parallel__mclapply
+		result<-parallel::mclapply(range, function(x) { runCalc(x, graphout=graphout); },mc.cores=MCCORES_MOTIF );
+		# ); # parallel::mclapply
 
 	}
     #cat("warning: bfoot.R line 825:\n");
@@ -891,20 +895,35 @@ DrawStamMotifAggPlotOnChIPBoundRegions <- function(S, tag="", motifdir=c(1,-1),o
 	
 	if (!file.exists( savefile) || BFOOT_DEBUG) {
 
+#### motif file format
+#motif_id        motif_alt_id    sequence_name   start   stop    strand  score   p-value q-value matched_sequence
+#AHR_MOUSE.H11MO.0.B             chr18   3222135 3222143 +       13.7895 2.72e-06        1       gttgcgtgc
+#AHR_MOUSE.H11MO.0.B             chr6    3249258 3249266 +       13.7895 2.72e-06        1       GTTGCGTGC
+#AHR_MOUSE.H11MO.0.B             chr4    3282856 3282864 +       13.7895 2.72e-06        1       GTTGCGTGC
+
+#		browser();
 		motif_chip_dhs=NULL;
-			motif=data.frame(data.table::fread(S$motif))[,-1];
-			motif = motif[,1:5];
-			istart = match('start',names(motif));
-			if (istart == 2) {
-				names(motif)[(istart-1):(istart+3)] = c("chr","st","ed", "dir","value");
-				direction = motifdir;
-				direction[direction==1] = '+';
-				direction[direction==-1] = '-';
-				motif = motif[is.element(motif$dir, direction),];
-			} else {
-				names(motif)=c("chr","st","ed", "value","dir");
-				motif = motif[is.element(motif$dir, motifdir),];
+			#motif=data.frame(data.table::fread(S$motif))[,-1];
+			motif0 = read.table(S$motif, sep='\t', header=T);
+			necessary_column_names=c("sequence_name","start","stop","strand","score");
+			necessary_columns=sapply( necessary_column_names, function(x) match(x,names(motif0)));
+			if (any(is.na(necessary_columns))) {
+				stop(
+					sprintf("In the motif data file %s, the column '%s' is missing\n",S$motif, necessary_column_names[is.na(necessary_columns)])
+				);
 			}
+			motif = motif0[,necessary_columns];
+			#istart = match('start',names(motif0));
+			#if (istart == 2) {
+			names(motif) = c("chr","st","ed", "dir","value");
+			direction = motifdir;
+			direction[direction==1] = '+';
+			direction[direction==-1] = '-';
+			motif = motif[is.element(motif$dir, direction),];
+		#	} else {
+		#		names(motif)=c("chr","st","ed", "value","dir");
+		#		motif = motif[is.element(motif$dir, motifdir),];
+		#	}
 
 			motifwidth = motif$ed[1]-motif$st[1]+1;
 			result=NULL;
@@ -1346,7 +1365,7 @@ CalcExpectedRates<- function(tregion, dir=NA,nuccodes=NA,ftable=NA) {
       if (MCCORES==1) {
 		QQ<-lapply(1:nrow(regionInRange) ,calcPj);
 	  } else {
-		QQ<-parallel__mclapply(1:nrow(regionInRange) ,calcPj, mc.cores=MCCORES);
+		QQ<-parallel::mclapply(1:nrow(regionInRange) ,calcPj, mc.cores=MCCORES);
 	  }
       Qj= do.call("rbind",QQ)
       QC =array(0,dim=c(length(inRange), ncol(Qj)));
@@ -1354,7 +1373,7 @@ CalcExpectedRates<- function(tregion, dir=NA,nuccodes=NA,ftable=NA) {
       QC;
   }
 
-  Pj = parallel__mclapply(locchrom, calcPerchrom, mc.cores=MCCORES);
+  Pj = parallel::mclapply(locchrom, calcPerchrom, mc.cores=MCCORES);
 
   filterNANresult <- function(SS) {
 	  if (is.numeric(SS)) {
@@ -2074,7 +2093,7 @@ gen_bagplot<-function(dat, dataname1=dataname1, dataname2=dataname2, factor=3, p
 	outeridx = findOutliersIndex(datan, outer);
 	inneridx = findOutliersIndex(datan, bag);
 	nametoshowInGray[outeridx] = as.character(datan$name[outeridx]);
-	browser();
+	#browser();
 	category = vector("character", length=nrow(datan));
 	category[inneridx] = "bag";
 	category[outeridx] = "fence";
@@ -2699,7 +2718,7 @@ calcFreqeuncyTableBAM <- function ( bamfile='',refgenome='', np=6,mapdir='',shif
 
    # print(chroms);
 
-   freqs=parallel__mclapply(chroms, function(x) calcFrequencyTableBAMChromosome(bamfile, x,genome=genome, np=np,mapdir=mapdir,shifts=shifts), mc.cores=2);
+   freqs=parallel::mclapply(chroms, function(x) calcFrequencyTableBAMChromosome(bamfile, x,genome=genome, np=np,mapdir=mapdir,shifts=shifts), mc.cores=2);
   #freqs=lapply(c('chr1','chr2'), function(x) calcFrequencyTableBAMChromosome(bamfile, x,genome=genome, np=np,mapdir=mapdir,shifts=shifts));
 
     countsum = freqs[[1]]$count;
@@ -3005,8 +3024,8 @@ BuildCutCountProfileBAM <- function (bamfile='', dataname='', bgrfilename='', ft
 		cutdensity={};
 	}
 
-#	l<-parallel__mclapply(sample(chroms), MakeCutCountProfilesForChromosome, mc.cores=6);
-	l<-lapply(sample(chroms), MakeCutCountProfilesForChromosome);
+	l<-parallel::mclapply(sample(chroms), MakeCutCountProfilesForChromosome);
+#	l<-lapply(sample(chroms), MakeCutCountProfilesForChromosome);
 
 	for (chr in chroms) {
 		tempfile = bgrtempfiles[[chr]];
@@ -3095,7 +3114,8 @@ drawMotifAggPlotOnMotifSetsForMultipleRangesForSingleRun <- function(
 	outputdir_base = outputdir;
 
  	if (!exists("ftablefile")) { # read once,
- 	  freqtable<-readFrequencyTable(ftablefile);np = round(log(nrow(freqtable)-1)/log(4));
+ 	  freqtable<-readFrequencyTable(ftablefile);
+	   np = round(log(nrow(freqtable)-1)/log(4));
  	} else {
 	  np = 6;   # by default
 	}
@@ -3105,7 +3125,10 @@ drawMotifAggPlotOnMotifSetsForMultipleRangesForSingleRun <- function(
 	doexist=file.exists(nuccodefiles);
 	chrs= chrs[doexist];
 	nuccodefiles=nuccodefiles[doexist];
-	nuccodes= parallel__mclapply(nuccodefiles, function(nuccodefile) {
+	# nuccodes= parallel::mclapply(nuccodefiles, function(nuccodefile) {
+	# 		nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
+	# 		nuccode; }, mc.cores=MCCORES,mc.preschedule=F);
+	nuccodes= parallel::mclapply(nuccodefiles, function(nuccodefile) {
 			nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
 			nuccode; }, mc.cores=MCCORES,mc.preschedule=F);
 
