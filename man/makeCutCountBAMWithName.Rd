@@ -4,8 +4,7 @@
 \alias{makeCutCountBAMWithName}
 \title{Make a cutcount data file from a BAM file}
 \usage{
-makeCutCountBAMWithName(bamFile, name = "", refgenome = "mm9",
-  atac = F)
+makeCutCountBAMWithName(bamFile, name = "", refgenome = "mm9", atac = F)
 }
 \arguments{
 \item{name}{Name of the output bedgraph file}

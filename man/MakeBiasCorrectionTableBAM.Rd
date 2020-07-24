@@ -4,8 +4,14 @@
 \alias{MakeBiasCorrectionTableBAM}
 \title{Generate n-mer bias tables from a given bam file}
 \usage{
-MakeBiasCorrectionTableBAM(bamfile = "", outfile = "",
-  refgenome = "", np = 6, mapdir = "", atac = F)
+MakeBiasCorrectionTableBAM(
+  bamfile = "",
+  outfile = "",
+  refgenome = "",
+  np = 6,
+  mapdir = "",
+  atac = F
+)
 }
 \arguments{
 \item{bamfile}{Path to the input bam file}

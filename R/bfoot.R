@@ -2,7 +2,7 @@
 #
 # Programmed by Songjoon Baek 2017
 #
-# Last Update : 4.18.2018
+# Last Update : 7.24.2020
 
 #library("hash");    # 2.2.6
 #library("parallel");
@@ -19,7 +19,7 @@
 ###################################bfoot.configuration #########################################
 pkg.env <- new.env(parent=emptyenv());  # https://stackoverflow.com/questions/12598242/global-variables-in-packages-in-r
 
-pkg.env$bagfootVersion = "0.9.7.04";
+pkg.env$bagfootVersion = "0.9.7.05";
 
 
 load_global_options <- function() {
@@ -1768,7 +1768,7 @@ readbed <- function(filename)
     readbed;
 }
 
-readbgr <- function(filename)
+readbgr <- function(filename,nrows=-1)
 {
     if (filename=="")
     {
@@ -1790,7 +1790,7 @@ readbgr <- function(filename)
             return;
         } else
         {
-            R=read.csv(filename, sep="", header=FALSE,comment.char="", skip=i-1, colClasses=c("factor","numeric","numeric","numeric"), stringsAsFactors=FALSE);
+            R=read.csv(filename, sep="", header=FALSE,comment.char="", skip=i-1, colClasses=c("factor","numeric","numeric","numeric"), stringsAsFactors=FALSE, nrows=nrows);
             names(R) <- c("chr","st","ed","value");
             R$st = R$st+1;
             R;
@@ -3325,4 +3325,91 @@ RunPairwiseComparison <- function(file1 = '', file2= '',name1= '', name2= '', si
 			write.table(newtab, file=outputcsvfile);
 		};
 		outputcsvfile;
+}
+
+#' @export
+test_bagfoot_input <- function(gfoot) {
+	check_bgr_file_exists_and_is_readable <- function(filename, testname) {
+		if (!file.exists(filename)) {
+			cat(sprintf("%s:  %s not found.\n",testname, filename));
+			return(F);
+		}
+		tab= readbgr(filename, nrows=10);
+
+		test1= all(c("chr","st","ed","value") %in% names(tab)) && nrow(tab)>=1;
+		cat(sprintf("%s: reading %s => %s\n" , testname, filename, ifelse(test1,"success","fail") ));
+		return(test1);
+	}
+
+	check_site_file_exists_and_readable <- function(filename) {
+		if (!file.exists(filename)) {
+			cat(sprintf("The sites file:  %s not found.\n", filename));
+			return(F);
+		}
+		tab= readcsv(filename);
+		test1= all(c("chr","st") %in% names(tab)) && nrow(tab)>=1;
+		cat(sprintf("The sites file: reading %s => %s\n" , filename, ifelse(test1,"success","fail") ));
+		return(test1);
+	}
+
+	check_bias_file_exists_and_readable <- function(filename) {
+		if (!file.exists(filename)) {
+			cat(sprintf("The bias frequency file:  %s not found.\n", filename));
+			return(F);
+		}
+		tab = read.table(filename);
+		test1= all(c("ObCuts","GenomicPositionCount","ObCutRatio","GPRatio","CorrectionFactor") %in% names(tab)) && nrow(tab)>=1;
+		cat(sprintf("The bias frequency file: reading %s => %s\n" , filename, ifelse(test1,"success","fail") ));
+		return(test1);
+	}
+	
+	check_hexamer_patterns <- function(pattern) {
+		if (!grepl("\\{chr\\}", pattern)) {
+			cat("The hexamer pattern string must have {chr}.");
+			return(F);
+		} 
+		nuccodefiles = Sys.glob(gsub("\\{chr\\}","*",pattern));
+		if (length(nuccodefiles)<1) {
+			cat(sprintf("No hexamer pattern found at  %s\n", pattern));
+			return(F);
+		} else {
+			cat(sprintf("The total %d hexamer pattern files found at %s : --> success\n",length(nuccodefiles),
+					dirname(nuccodefiles[1]) ));
+			return(T);
+		}
+	}
+	
+	check_motiflist_file <- function(motifdb) {
+		filename = motifdb@motiflistfile;
+		if (!file.exists(filename)) {
+			cat(sprintf("The motiflist file:  %s not found. -> error\n", filename));
+			return(F);
+		}
+		motiflist=read.table(filename);
+		test1= all(c("filename","center","memeEntry","motif") %in% names(motiflist)) && nrow(motiflist)>=1;
+		cat(sprintf("The motif list file: reading %s => %s\n" , filename, ifelse(test1,"success","fail") ));
+		motiffiles = file.path(motifdb@directory, motiflist$file );
+		motiffileexists = sapply(motiffiles, file.exists);
+		nummotiffiles = sum(motiffileexists);
+		nummotifs = length(motiffiles);
+		cat(sprintf("%d of %d  motif sites files found: ", nummotiffiles, nummotifs));
+		if (nummotiffiles < nummotifs) {
+			cat('error.\n')
+			cat(sprintf("file not found: %s\n", head(motiffiles[!motiffileexists])));
+			return(F);
+		}
+		cat('success\n');
+		return(T);
+	}
+
+	result = T;
+	result <- result & check_bgr_file_exists_and_is_readable(gfoot@control@file, "checking the control bgr file");
+	result <- result & check_bgr_file_exists_and_is_readable(gfoot@treatment@file, "checking the treatment bgr file");
+	result <- result & check_site_file_exists_and_readable(gfoot@sitefile);
+	if (gfoot@gfootoption@biasfile != "") {
+		result <- result | check_bias_file_exists_and_readable(gfoot@gfootoption@biasfile);
+	}
+	result <- result & check_hexamer_patterns( gfoot@gfootoption@hexamer_pattern);
+	result <- result & check_motiflist_file(gfoot@motifDB);
+	return(result);		 
 }
