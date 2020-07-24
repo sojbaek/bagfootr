@@ -17,28 +17,31 @@
 #library(doMC);
 #library(foreach);
 ###################################bfoot.configuration #########################################
+pkg.env <- new.env(parent=emptyenv());  # https://stackoverflow.com/questions/12598242/global-variables-in-packages-in-r
 
-MCCORES=getOption("mc.cores", 2L);	         # Number of CPU cores for parallel computation
-#MCCORES=4;
-MCCORES_MOTIF =getOption("mc.cores", 2L);	     # How many motifs are calculated at the same time
-#MCCORES_MOTIF = 1;     # How many motifs are calculated at the same time
-FAST_AGGREGATION_MC_CORES = 8; # Number of CPU cores for less-memory dependent calculation
+pkg.env$bagfootVersion = "0.9.7.04";
 
-MAX_MOTIF_SITES = 10000000;    # Maximum number of FIMO sites for each motif
-BFOOT_DEBUG = F;
 
+load_global_options <- function() {
+	pkg.env$MCCORES=getOption("bagfoot.mc.cores", 2L);	         # Number of CPU cores for parallel computation
+	pkg.env$MC_CORES_MOTIF =getOption("bagfoot.mc.cores.motif", 2L);	     # How many motifs are calculated at the same time
+	pkg.env$MAX_MOTIF_SITES = getOption("bagfoot.max.motif.sites", 10000000);    # Maximum number of FIMO sites for each motif
+	pkg.env$BFOOT_DEBUG = getOption("bagfoot.debug", F);
+}
+
+load_global_options();
 
 #parallel__mclapply = parallel::mclapply;
 #parallel__mclapply <<- function(x, y, ...) { lapply(x,y); };
 
 #dyn.load("bagfoot.so",);
 
-#doMC::registerDoMC(cores=MCCORES);
+#doMC::registerDoMC(cores=pkg.env$MCCORES);
 
 ###################################bfoot#########################################################
 
-bagfootVersion <<- "0.9.7.03";
-cat(sprintf('BaGFoot: v.%s\n', bagfootVersion));
+
+cat(sprintf('BaGFoot: v.%s\n', pkg.env$bagfootVersion));
 
 printf <- function(...) { cat(sprintf(...)); };
 
@@ -75,7 +78,7 @@ countCutcountOnSites <- function(cutcount, sites) {
 			s;
 	}
 	#browser();
-	sum(unlist(parallel::mclapply(chroms, sum_for_chr,mc.cores=MCCORES)));
+	sum(unlist(parallel::mclapply(chroms, sum_for_chr,mc.cores=pkg.env$MCCORES)));
 }
 
 readCutCountOnSites<-function(cutcount_file="", site_file="") {
@@ -143,7 +146,7 @@ readCutCountOnSites<-function(cutcount_file="", site_file="") {
 		sites = readhotspot(site_file);
 
 		#browser();
-		reduced_cutcount= parallel::mclapply(names(cutcount), function(x) { filterCutcountByHotspot(sites, x); }, mc.cores=MCCORES);
+		reduced_cutcount= parallel::mclapply(names(cutcount), function(x) { filterCutcountByHotspot(sites, x); }, mc.cores=pkg.env$MCCORES);
 		#reduced_cutcount= lapply(names(cutcount), function(x) { filterCutcountByHotspot(sites, x); });
 		names(reduced_cutcount)<- names(cutcount);
 
@@ -225,7 +228,7 @@ drawMotifAggPlotOnMotifSetsForMultipleRangesAndWithComparisons <- function(
 	nuccodefiles=nuccodefiles[doexist];
 	nuccodes= parallel::mclapply(nuccodefiles, function(nuccodefile) {
 			nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
-			nuccode; }, mc.cores=MCCORES,mc.preschedule=F);
+			nuccode; }, mc.cores=pkg.env$MCCORES,mc.preschedule=F);
 
 	# nuccodes= lapply(nuccodefiles, function(nuccodefile) {
 	# 		nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
@@ -441,7 +444,9 @@ ScatterDataOut <- function(dataname1="", dataname2="", motiflistfile="",
 
 
 runGfoot<-function(Gfoot, range=NA, graphout=F, halfwidths=c(50),normalization="default", yrange=c(-2.2,0.5)) {
-
+	
+	load_global_options();
+	
 	drawMotifAggPlotOnMotifSetsForMultipleRangesAndWithComparisons(
 		sitefiledir=Gfoot@motifDB@directory,
 		cache= Gfoot@cachedir,
@@ -564,14 +569,14 @@ setMethod(f="loadCutcount",		#GFoot::calcHeatmap
 
 #' @export
 setGeneric(name="run",    #GFoot::run
-			def = function(obj,range=NA,graphout=F,yrange=c(-2.2,0.5), mc.cores=MCCORES) {
+			def = function(obj,range=NA,graphout=F,yrange=c(-2.2,0.5), mc.cores=pkg.env$MCCORES) {
 				standardGeneric("run");
  			});
 
 #' @export
 setMethod(f="run",		#GFoot::run
 		  signature="GFoot",
-		  definition=function(obj, range=NA, graphout=F, yrange=c(-2.2,0.5), mc.cores= MCCORES) {
+		  definition=function(obj, range=NA, graphout=F, yrange=c(-2.2,0.5), mc.cores= pkg.env$MCCORES) {
 				#obj <- loadCutcount(obj);
 
 				if (length(obj@control@cutcount)==0) {
@@ -583,7 +588,7 @@ setMethod(f="run",		#GFoot::run
 				}
 				#obj@treatment<-readCutCountSites(obj@treatment, obj@sitefile); #read cutcount
 				cat(sprintf("Num. of CPU cores to use: %d\n",mc.cores));
-				MCCORES = mc.cores;
+				pkg.env$MCCORES = mc.cores;
 				obj@outputfiles=runGfoot(
 					obj,              # GFoot obj
 					range =  range,   # Range of CREB
@@ -598,7 +603,7 @@ setMethod(f="run",		#GFoot::run
 
 
 
-gfoot_ptm <<- proc.time();  # initial time
+#gfoot_ptm <<- proc.time();  # initial time
 
 dlog <- function(output, ...) {
 #~ #	cat(sprintf("[%g sec] %s", etime[["elapsed"]], output, ...));
@@ -637,7 +642,7 @@ intersect_intervals_fast_parallel_index2 <- function(P) {
     R;
 }
 
-OverlappingIndexAParallel <- function(A,B,mc.cores=MCCORES)
+OverlappingIndexAParallel <- function(A,B,mc.cores=pkg.env$MCCORES)
 {
 
   OverlappingIndexAParallelPerChrom<-function(i) {
@@ -668,7 +673,7 @@ OverlappingIndexAParallel <- function(A,B,mc.cores=MCCORES)
   unlist(kk);
 }
 
-CompareHotspotsFaster<-function(A,B, mc.cores=MCCORES) {
+CompareHotspotsFaster<-function(A,B, mc.cores=pkg.env$MCCORES) {
 	idx = OverlappingIndexAParallel(A,B, mc.cores=mc.cores);
 	A[idx,];
 }
@@ -832,12 +837,12 @@ drawMotifAggPlotOnMotifSets<- function(dataname = '',
 
 		}
 
-	if (MCCORES_MOTIF == 1) {
+	if (pkg.env$MC_CORES_MOTIF == 1) {
 		result<-lapply(range, function(x) { runCalc(x, graphout=graphout); }); # parallel::mclapply
 	} else {
 		
 		#result<- foreach::foreach(x = range, .combine=c) %dopar% runCalc(x, graphout=graphout);	
-		result<-parallel::mclapply(range, function(x) { runCalc(x, graphout=graphout); },mc.cores=MCCORES_MOTIF );
+		result<-parallel::mclapply(range, function(x) { runCalc(x, graphout=graphout); },mc.cores=pkg.env$MC_CORES_MOTIF );
 		# ); # parallel::mclapply
 
 	}
@@ -893,7 +898,7 @@ DrawStamMotifAggPlotOnChIPBoundRegions <- function(S, tag="", motifdir=c(1,-1),o
 	}
 
 	
-	if (!file.exists( savefile) || BFOOT_DEBUG) {
+	if (!file.exists( savefile) || pkg.env$BFOOT_DEBUG) {
 
 #### motif file format
 #motif_id        motif_alt_id    sequence_name   start   stop    strand  score   p-value q-value matched_sequence
@@ -944,18 +949,18 @@ DrawStamMotifAggPlotOnChIPBoundRegions <- function(S, tag="", motifdir=c(1,-1),o
 
 				if (nrow(motif)>0) {
 				#				dlog(">>>>>\n");
-					motif_chip= CompareHotspotsFaster(motif, chip, mc.cores=MCCORES);
+					motif_chip= CompareHotspotsFaster(motif, chip, mc.cores=pkg.env$MCCORES);
 				#				dlog("CompareHotspots>>>>>\n");
 					if (S$DHS == S$CHIP) {
 						motif_chip_dhs = motif_chip;
 					} else {
-						motif_chip_dhs= CompareHotspotsFaster(motif_chip, dhs, mc.cores=MCCORES);
+						motif_chip_dhs= CompareHotspotsFaster(motif_chip, dhs, mc.cores=pkg.env$MCCORES);
 					}
 				}
 
-				if (nrow(motif_chip_dhs)> MAX_MOTIF_SITES) {
+				if (nrow(motif_chip_dhs)> pkg.env$MAX_MOTIF_SITES) {
 					set.seed(1);
-					motif_chip_dhs = motif_chip_dhs[sample(nrow(motif_chip_dhs), MAX_MOTIF_SITES),];
+					motif_chip_dhs = motif_chip_dhs[sample(nrow(motif_chip_dhs), pkg.env$MAX_MOTIF_SITES),];
 				}
 			}
     #browser();
@@ -1050,7 +1055,7 @@ calcNormalizedExpectedObservedCounts <- function (sites, S, cache, basehalfwidth
 
 	savefile = file.path(cache,sprintf('%s_%s_2.dat',make.names(S$motifinfo$name), digest::digest(c(sites,quicksummaryListOrString(cutcountfile) , S$dhsinfo$name, halfwidth, motifname,ftablefile))));
 
-	if (!file.exists( savefile) || heatmapout != '' || BFOOT_DEBUG) {
+	if (!file.exists( savefile) || heatmapout != '' || pkg.env$BFOOT_DEBUG) {
 		if (is.list(cutcountfile)) {
 			cutcount = cutcountfile;
 		} else {
@@ -1189,7 +1194,7 @@ StamMotifAggPlot<- function(sites, S,output='', halfwidth=20,movingaverage=F, yr
 #
 	#browser();;;
 
-	if (!filesizenotzero(datafile) || BFOOT_DEBUG) {
+	if (!filesizenotzero(datafile) || pkg.env$BFOOT_DEBUG) {
 
 		RR <- calcNormalizedExpectedObservedCounts(sites, S, cache, basehalfwidth, halfwidth, scalefactor)
 
@@ -1362,10 +1367,10 @@ CalcExpectedRates<- function(tregion, dir=NA,nuccodes=NA,ftable=NA) {
          }
          returnvalue;
       }
-      if (MCCORES==1) {
+      if (pkg.env$MCCORES==1) {
 		QQ<-lapply(1:nrow(regionInRange) ,calcPj);
 	  } else {
-		QQ<-parallel::mclapply(1:nrow(regionInRange) ,calcPj, mc.cores=MCCORES);
+		QQ<-parallel::mclapply(1:nrow(regionInRange) ,calcPj, mc.cores=pkg.env$MCCORES);
 	  }
       Qj= do.call("rbind",QQ)
       QC =array(0,dim=c(length(inRange), ncol(Qj)));
@@ -1373,7 +1378,7 @@ CalcExpectedRates<- function(tregion, dir=NA,nuccodes=NA,ftable=NA) {
       QC;
   }
 
-  Pj = parallel::mclapply(locchrom, calcPerchrom, mc.cores=MCCORES);
+  Pj = parallel::mclapply(locchrom, calcPerchrom, mc.cores=pkg.env$MCCORES);
 
   filterNANresult <- function(SS) {
 	  if (is.numeric(SS)) {
@@ -3053,7 +3058,7 @@ GFootSingleRun=function(cutcount=NA, sitefile=NA, motifDB=NA, gfootOption=NA, na
 		cutcountonsite= readCutCountSites(cutcount, site_file=sitefile);   #read cutcount
 		cat(sprintf("Num. of CPU cores to use: %d\n",mc.cores));
 		
-		MCCORES= mc.cores;
+		pkg.env$MCCORES= mc.cores;
 		halfwidths=c(50);
 		normalization="default";
 		outputdir = file.path(".", sprintf("OUTPUT_%s", name));
@@ -3127,10 +3132,10 @@ drawMotifAggPlotOnMotifSetsForMultipleRangesForSingleRun <- function(
 	nuccodefiles=nuccodefiles[doexist];
 	# nuccodes= parallel::mclapply(nuccodefiles, function(nuccodefile) {
 	# 		nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
-	# 		nuccode; }, mc.cores=MCCORES,mc.preschedule=F);
+	# 		nuccode; }, mc.cores=pkg.env$MCCORES,mc.preschedule=F);
 	nuccodes= parallel::mclapply(nuccodefiles, function(nuccodefile) {
 			nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
-			nuccode; }, mc.cores=MCCORES,mc.preschedule=F);
+			nuccode; }, mc.cores=pkg.env$MCCORES,mc.preschedule=F);
 
 	if (normalization=="default") {
 	#	browser();
