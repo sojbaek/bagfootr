@@ -867,6 +867,18 @@ quicksummaryListOrString<-function(obj) {
 	r;
 }
 
+read_motif_file<- function(motiffile) {
+	motif0 = read.table(motiffile, sep='\t', header=T,comment.char = "");
+	
+	necessary_column_names=c("seq","start","stop","strand","score");
+	necessary_columns=unlist(sapply(necessary_column_names, function(x) which(startsWith(tolower(names(motif0)),x))));
+	if (length(necessary_columns)<length(necessary_column_names)) {
+		return(NULL);
+	}
+	motif = motif0[,necessary_columns];
+	names(motif) = c("chr","st","ed", "dir","value");
+	motif;
+}
 
 DrawStamMotifAggPlotOnChIPBoundRegions <- function(S, tag="", motifdir=c(1,-1),output='',  halfwidth=20,movingaverage=F, plot1yrange=0,  yrange=c(-2.5,1.5),title='', cache='.', outputdir='.',strandwisePlot=F, scalefactor=1, graphout=F) {
 
@@ -909,18 +921,11 @@ DrawStamMotifAggPlotOnChIPBoundRegions <- function(S, tag="", motifdir=c(1,-1),o
 #		browser();
 		motif_chip_dhs=NULL;
 			#motif=data.frame(data.table::fread(S$motif))[,-1];
-			motif0 = read.table(S$motif, sep='\t', header=T);
-			necessary_column_names=c("sequence_name","start","stop","strand","score");
-			necessary_columns=sapply( necessary_column_names, function(x) match(x,names(motif0)));
-			if (any(is.na(necessary_columns))) {
-				stop(
-					sprintf("In the motif data file %s, the column '%s' is missing\n",S$motif, necessary_column_names[is.na(necessary_columns)])
-				);
+		
+			motif = read_motif_file(S$motif);
+			if (is.null(motif)) {
+				stop(sprintf("Error: incompatible motif site file: %s\n",motiffile));
 			}
-			motif = motif0[,necessary_columns];
-			#istart = match('start',names(motif0));
-			#if (istart == 2) {
-			names(motif) = c("chr","st","ed", "dir","value");
 			direction = motifdir;
 			direction[direction==1] = '+';
 			direction[direction==-1] = '-';
@@ -3397,6 +3402,17 @@ test_bagfoot_input <- function(gfoot) {
 			cat('error.\n')
 			cat(sprintf("file not found: %s\n", head(motiffiles[!motiffileexists])));
 			return(F);
+		} else if (nummotifs < 1) {
+			cat('The motiflist file is empty or not readable.');
+			return(F);
+		} else {
+			motifs= read_motif_file(motiffiles[1]);
+			if (nrow(motifs)>1 && ncol(motifs)==5) {
+				cat(sprintf("The motif file %s : ok\n",motiffiles[1]));
+			} else {
+				cat(sprintf('The motif file %s is empty or not readable.', motiffiles[1]));
+				return(F);
+			}
 		}
 		cat('success\n');
 		return(T);
