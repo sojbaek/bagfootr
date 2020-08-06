@@ -1,6 +1,10 @@
 library('bagfoot');
 # This script runs "BaGFoot" on an example data set.
 
+options("bagfoot.mc.cores"=2);
+options("bagfoot.mc.cores.motif"=2);
+
+
 fed <- CutCount(file = "example_data/cutcount/fed_AC_cutcount_chr7.bgr.gz",   # BedGraph file of cut counts (see "bigfoot_prep_example.R")
 									count = 97573026,						  # Number of cuts within the hotspots
 									name = "fed");                            # Data Name 
@@ -29,11 +33,16 @@ GFoot_fed_fasted= GFoot(control = fed,               ##  Control Data defined ab
 						gfootoption= gfootoption_fed_fasted,   ##  Options as defined above
 						outputdir = "OUTPUT_fed_vs_fasted",  ## OUTPUT directory
 						cachedir = "CACHE_fed_vs_fasted");   ## CACHE directory 
+
+
+testresult = test_bagfoot_input(GFoot_fed_fasted); 
+
+if (testresult) {
 						
-GFoot_fed_fasted <- run(GFoot_fed_fasted, graphout=T,yrange=c(-2.2,1.0),MCCORES=2);   # if graphout is T, aggregation & log-ratio plots are to be generated.  
-# As an output, the output file 'fed_fasted_On_pooled_fed_fasted_merged_hotspot_chr7_footprint_depth_table.csv' will be generated.
+	GFoot_fed_fasted <- run(GFoot_fed_fasted, graphout=T,yrange=c(-2.2,1.0),mc.cores=2);   # if graphout is T, aggregation & log-ratio plots are to be generated.  
+	# As an output, the output file 'fed_fasted_On_pooled_fed_fasted_merged_hotspot_chr7_footprint_depth_table.csv' will be generated.
 
-dat= read.table('fed_fasted_On_pooled_fed_fasted_merged_hotspot_chr7_footprint_depth_table.csv');
-gen_bagplot(dat, dataname1='Fed', dataname2='Fasted', factor=1.5);   # generates a bagplot from the calculated footprinting depths
+	dat= read.table('fed_fasted_On_pooled_fed_fasted_merged_hotspot_chr7_footprint_depth_table.csv');
+	gen_bagplot(dat, dataname1='Fed', dataname2='Fasted', factor=1.5);   # generates a bagplot from the calculated footprinting depths
 
-
+}
