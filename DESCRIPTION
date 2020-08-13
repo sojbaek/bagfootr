@@ -1,6 +1,6 @@
 Package: bagfoot
 Title: Bi-vAriate Genomic Footprinting (BaGFoot)
-Version: 0.9.7.06
+Version: 0.9.7.07
 Authors@R: person("Songjoon", "Baek", email = "sojbaek@gmail.com", role = c("aut", "cre"))
 Description: BaGFoot
 Depends:

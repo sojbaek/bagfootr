@@ -19,7 +19,7 @@
 ###################################bfoot.configuration #########################################
 pkg.env <- new.env(parent=emptyenv());  # https://stackoverflow.com/questions/12598242/global-variables-in-packages-in-r
 
-pkg.env$bagfootVersion = "0.9.7.05";
+pkg.env$bagfootVersion = "0.9.7.07";
 
 
 load_global_options <- function() {
@@ -78,7 +78,11 @@ countCutcountOnSites <- function(cutcount, sites) {
 			s;
 	}
 	#browser();
-	sum(unlist(parallel::mclapply(chroms, sum_for_chr,mc.cores=pkg.env$MCCORES)));
+	if (pkg.env$MCCORES==1) {
+		return(sum(unlist(lapply(chroms, sum_for_chr))));
+	} else {
+		return(sum(unlist(parallel::mclapply(chroms, sum_for_chr,mc.cores=pkg.env$MCCORES))));
+	}
 }
 
 readCutCountOnSites<-function(cutcount_file="", site_file="") {
@@ -146,7 +150,11 @@ readCutCountOnSites<-function(cutcount_file="", site_file="") {
 		sites = readhotspot(site_file);
 
 		#browser();
-		reduced_cutcount= parallel::mclapply(names(cutcount), function(x) { filterCutcountByHotspot(sites, x); }, mc.cores=pkg.env$MCCORES);
+		if (pkg.env$MCCORES==1) {
+			reduced_cutcount= lapply(names(cutcount), function(x) { filterCutcountByHotspot(sites, x); });
+		} else {
+			reduced_cutcount= parallel::mclapply(names(cutcount), function(x) { filterCutcountByHotspot(sites, x); }, mc.cores=pkg.env$MCCORES);
+		}
 		#reduced_cutcount= lapply(names(cutcount), function(x) { filterCutcountByHotspot(sites, x); });
 		names(reduced_cutcount)<- names(cutcount);
 
@@ -226,9 +234,16 @@ drawMotifAggPlotOnMotifSetsForMultipleRangesAndWithComparisons <- function(
 	doexist=file.exists(nuccodefiles);
 	chrs= chrs[doexist];
 	nuccodefiles=nuccodefiles[doexist];
-	nuccodes= parallel::mclapply(nuccodefiles, function(nuccodefile) {
-			nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
-			nuccode; }, mc.cores=pkg.env$MCCORES,mc.preschedule=F);
+	
+	if (pkg.env$MCCORES == 1) {
+		nuccodes= lapply(nuccodefiles, function(nuccodefile) {
+				nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
+				nuccode; });
+	} else {
+		nuccodes= parallel::mclapply(nuccodefiles, function(nuccodefile) {
+				nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
+				nuccode; }, mc.cores=pkg.env$MCCORES,mc.preschedule=F);
+	}
 
 	# nuccodes= lapply(nuccodefiles, function(nuccodefile) {
 	# 		nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
@@ -1383,7 +1398,11 @@ CalcExpectedRates<- function(tregion, dir=NA,nuccodes=NA,ftable=NA) {
       QC;
   }
 
-  Pj = parallel::mclapply(locchrom, calcPerchrom, mc.cores=pkg.env$MCCORES);
+  if (pkg.env$MCCORES == 1) {
+	  Pj = lapply(locchrom, calcPerchrom);
+  } else {
+	  Pj = parallel::mclapply(locchrom, calcPerchrom, mc.cores=pkg.env$MCCORES);
+  }
 
   filterNANresult <- function(SS) {
 	  if (is.numeric(SS)) {
@@ -3138,10 +3157,16 @@ drawMotifAggPlotOnMotifSetsForMultipleRangesForSingleRun <- function(
 	# nuccodes= parallel::mclapply(nuccodefiles, function(nuccodefile) {
 	# 		nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
 	# 		nuccode; }, mc.cores=pkg.env$MCCORES,mc.preschedule=F);
-	nuccodes= parallel::mclapply(nuccodefiles, function(nuccodefile) {
+	if (pkg.env$MCCORES==1) {
+		nuccodes= lapply(nuccodefiles, function(nuccodefile) {
+			nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
+			nuccode; });
+	} else {
+		nuccodes= parallel::mclapply(nuccodefiles, function(nuccodefile) {
 			nuccode=readNucleotideCodeForChromosomeForCuts(nuccodefile,np);
 			nuccode; }, mc.cores=pkg.env$MCCORES,mc.preschedule=F);
-
+	}
+	
 	if (normalization=="default") {
 	#	browser();
 		oldncutcounts= ncutcounts;
