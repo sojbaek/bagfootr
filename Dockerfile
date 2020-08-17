@@ -50,6 +50,7 @@ RUN R -e "BiocManager::install('IRanges')"
 WORKDIR /home/bagfoot
 RUN wget https://sourceforge.net/projects/bagfootr/files/example_data.tar.gz
 RUN tar -xvf /home/bagfoot/example_data.tar.gz
+RUN chmod -R a+rX /home/bagfoot/example_data/
 
 RUN wget https://sourceforge.net/projects/bagfootr/files/bagfoot_prep_example.R
 RUN wget https://sourceforge.net/projects/bagfootr/files/bagfoot_run_example.R
